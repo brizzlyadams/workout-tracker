@@ -101,6 +101,12 @@
   .excard .extarget {
     font-size: 12.5px;
     color: var(--grey-text);
+    margin-bottom: 4px;
+  }
+  .excard .exlast {
+    font-size: 12.5px;
+    color: var(--navy-light);
+    font-weight: 600;
     margin-bottom: 10px;
   }
   .setsrow { display: flex; gap: 8px; }
@@ -251,21 +257,21 @@
 
 <script>
 const DAY_A = [
-  {code:'CP', name:'Chest press (machine or barbell)', target:'40kg · 3 x 8', suggested:40},
-  {code:'SP', name:'Seated shoulder press', target:'37kg · 3 x 8', suggested:37},
-  {code:'CR', name:'Seated cable row or single-arm row', target:'Moderate · 3 x 10', suggested:null},
-  {code:'TP', name:'Triceps pushdown', target:'Light-mod · 2-3 x 10-12', suggested:null},
-  {code:'RD', name:'Rear delt fly or face pull', target:'Light · 2 x 12-15', suggested:null},
-  {code:'PL', name:'Plank or dead bug', target:'Bodyweight · 2-3 x 20-30s/8reps', suggested:null},
+  {code:'CP', name:'Chest press (machine or barbell)', target:'40kg · 3 x 8', suggested:40, type:'weight'},
+  {code:'SP', name:'Seated shoulder press', target:'37kg · 3 x 8', suggested:37, type:'weight'},
+  {code:'CR', name:'Seated cable row or single-arm row', target:'Moderate · 3 x 10', suggested:null, type:'weight'},
+  {code:'TP', name:'Triceps pushdown', target:'Light-mod · 2-3 x 10-12', suggested:null, type:'weight'},
+  {code:'RD', name:'Rear delt fly or face pull', target:'Light · 2 x 12-15', suggested:null, type:'weight'},
+  {code:'PL', name:'Plank or dead bug', target:'Bodyweight · 2-3 x 20-30s/8reps', suggested:null, type:'time'},
 ];
 const DAY_B = [
-  {code:'LP', name:'Lat pulldown', target:'30kg · 3 x 8-10', suggested:30},
-  {code:'CS', name:'Chest-supported row or seated cable row', target:'Moderate · 3 x 8-10', suggested:null},
-  {code:'DB', name:'Incline or flat dumbbell press', target:'Moderate · 2-3 x 10', suggested:null},
-  {code:'BC', name:'Biceps curl', target:'Light-mod · 2-3 x 10-12', suggested:null},
-  {code:'FP', name:'Face pull or band pull-apart', target:'Light · 2 x 15', suggested:null},
-  {code:'LG', name:'Leg press (light maintenance)', target:'Light-mod · 2 x 10', suggested:null},
-  {code:'CO', name:'Core (dead bug / bird dog)', target:'Bodyweight · 2-3 x 8 each side', suggested:null},
+  {code:'LP', name:'Lat pulldown', target:'30kg · 3 x 8-10', suggested:30, type:'weight'},
+  {code:'CS', name:'Chest-supported row or seated cable row', target:'Moderate · 3 x 8-10', suggested:null, type:'weight'},
+  {code:'DB', name:'Incline or flat dumbbell press', target:'Moderate · 2-3 x 10', suggested:null, type:'weight'},
+  {code:'BC', name:'Biceps curl', target:'Light-mod · 2-3 x 10-12', suggested:null, type:'weight'},
+  {code:'FP', name:'Face pull or band pull-apart', target:'Light · 2 x 15', suggested:null, type:'weight'},
+  {code:'LG', name:'Leg press (light maintenance)', target:'Light-mod · 2 x 10', suggested:null, type:'weight'},
+  {code:'CO', name:'Core (dead bug / bird dog)', target:'Bodyweight · 2-3 x 8 each side', suggested:null, type:'time'},
 ];
 const ALL_EX = [...DAY_A.map(e => ({...e, day:'A'})), ...DAY_B.map(e => ({...e, day:'B'}))];
 
@@ -297,6 +303,26 @@ async function saveHistory() {
 
 function exList(day) { return day === 'A' ? DAY_A : DAY_B; }
 
+function getLastEntry(code) {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].sets && history[i].sets[code]) {
+      return { date: history[i].date, sets: history[i].sets[code] };
+    }
+  }
+  return null;
+}
+
+function formatSets(sets, type) {
+  return sets.map(s => {
+    if (type === 'time') {
+      if (s.w !== '' && s.w != null) return `${s.w}s`;
+      if (s.r !== '' && s.r != null) return `${s.r} reps`;
+      return '–';
+    }
+    return `${s.w || '–'}×${s.r || '–'}`;
+  }).join(', ');
+}
+
 function renderLog() {
   const el = document.getElementById('view-log');
   const list = exList(currentDay);
@@ -312,15 +338,21 @@ function renderLog() {
     <div class="exlist">
   `;
   list.forEach(ex => {
+    const last = getLastEntry(ex.code);
+    const lastLine = last
+      ? `Last (${last.date}): ${formatSets(last.sets, ex.type)}`
+      : 'No previous entry yet';
+    const wtPlaceholder = ex.type === 'time' ? 'sec' : 'kg';
     html += `
       <div class="excard">
         <div class="exname">${ex.code} · ${ex.name}</div>
         <div class="extarget">Target: ${ex.target}</div>
+        <div class="exlast">${lastLine}</div>
         <div class="setsrow">
           ${[1,2,3].map(n => `
             <div class="setcol">
               <div class="setlabel">Set ${n}</div>
-              <input type="text" inputmode="decimal" class="wt" data-code="${ex.code}" data-set="${n}" placeholder="kg">
+              <input type="text" inputmode="decimal" class="wt" data-code="${ex.code}" data-set="${n}" placeholder="${wtPlaceholder}">
               <input type="text" inputmode="numeric" class="reps" data-code="${ex.code}" data-set="${n}" placeholder="reps">
             </div>
           `).join('')}
@@ -390,7 +422,8 @@ function renderHistory() {
     sorted.forEach(s => {
       html += `<div class="session"><div class="shead"><span>${s.date}</span><span>Day ${s.day}</span></div>`;
       Object.keys(s.sets).forEach(code => {
-        const setsStr = s.sets[code].map(x => `${x.w || '–'}×${x.r || '–'}`).join(', ');
+        const ex = ALL_EX.find(e => e.code === code);
+        const setsStr = formatSets(s.sets[code], ex ? ex.type : 'weight');
         html += `<div class="sline"><b>${code}</b> — ${setsStr}</div>`;
       });
       html += `</div>`;
@@ -402,7 +435,7 @@ function renderHistory() {
 
 function renderProgress() {
   const el = document.getElementById('view-progress');
-  let html = `<div class="viewpad"><h2>Best weight logged</h2>`;
+  let html = `<div class="viewpad"><h2>Best logged so far</h2>`;
   ALL_EX.forEach(ex => {
     let best = null;
     let setsLogged = 0;
@@ -410,15 +443,19 @@ function renderProgress() {
       if (s.sets[ex.code]) {
         s.sets[ex.code].forEach(entry => {
           setsLogged++;
-          const val = parseFloat(entry.w);
+          const raw = ex.type === 'time'
+            ? (entry.w !== '' ? entry.w : entry.r)
+            : entry.w;
+          const val = parseFloat(raw);
           if (!isNaN(val)) {
             if (best === null || val > best) best = val;
           }
         });
       }
     });
+    const unit = ex.type === 'time' ? 's' : 'kg';
     html += `<div class="progcard"><div class="pname">${ex.code} · ${ex.name}</div>`;
-    if (ex.suggested !== null) {
+    if (ex.type === 'weight' && ex.suggested !== null) {
       html += `<div class="pline">Suggested: ${ex.suggested}kg</div>`;
     } else {
       html += `<div class="pline dim">Suggested: ${ex.target.split(' · ')[0]}</div>`;
@@ -426,12 +463,52 @@ function renderProgress() {
     if (setsLogged === 0) {
       html += `<div class="pline dim">Not logged yet</div>`;
     } else {
-      html += `<div class="pline">Best: ${best !== null ? best + 'kg' : '–'} &nbsp;·&nbsp; ${setsLogged} sets logged</div>`;
+      const bestLabel = ex.type === 'time' ? 'Best hold' : 'Best';
+      html += `<div class="pline">${bestLabel}: ${best !== null ? best + unit : '–'} &nbsp;·&nbsp; ${setsLogged} sets logged</div>`;
     }
     html += `</div>`;
   });
+  html += `
+    <div class="progcard">
+      <div class="pname">Backup &amp; Restore</div>
+      <div class="pline dim">Copy this text somewhere safe (Notes app, email to yourself) in case you switch devices or clear browser data.</div>
+      <textarea id="backupOutput" readonly style="width:100%;margin-top:8px;height:70px;border:1.5px solid var(--grey-border);border-radius:8px;padding:8px;font-family:monospace;font-size:11px;box-sizing:border-box;">${JSON.stringify(history)}</textarea>
+      <button class="savebtn" id="copyBackupBtn" style="margin-top:8px;">Copy Backup</button>
+      <div class="savemsg" id="backupMsg"></div>
+      <div class="pline dim" style="margin-top:14px;">To restore, paste a backup below:</div>
+      <textarea id="restoreInput" placeholder="Paste backup text here" style="width:100%;margin-top:6px;height:70px;border:1.5px solid var(--grey-border);border-radius:8px;padding:8px;font-family:monospace;font-size:11px;box-sizing:border-box;"></textarea>
+      <button class="savebtn" id="restoreBtn" style="margin-top:8px;background:#8A93A6;">Restore from Backup</button>
+    </div>
+  `;
   html += `</div>`;
   el.innerHTML = html;
+
+  document.getElementById('copyBackupBtn').onclick = async () => {
+    const msgEl = document.getElementById('backupMsg');
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(history));
+      msgEl.textContent = 'Copied! Paste it somewhere safe.';
+    } catch (e) {
+      msgEl.textContent = 'Auto-copy blocked — tap the text box above, select all, and copy manually.';
+    }
+    setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 4000);
+  };
+
+  document.getElementById('restoreBtn').onclick = async () => {
+    const input = document.getElementById('restoreInput').value.trim();
+    const msgEl = document.getElementById('backupMsg');
+    if (!input) { msgEl.textContent = 'Paste a backup first.'; return; }
+    try {
+      const parsed = JSON.parse(input);
+      if (!Array.isArray(parsed)) throw new Error('bad format');
+      history = parsed;
+      await saveHistory();
+      msgEl.textContent = 'Restored!';
+      renderProgress();
+    } catch (e) {
+      msgEl.textContent = "That doesn't look like a valid backup.";
+    }
+  };
 }
 
 function showTab(tab) {
