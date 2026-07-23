@@ -101,12 +101,6 @@
   .excard .extarget {
     font-size: 12.5px;
     color: var(--grey-text);
-    margin-bottom: 4px;
-  }
-  .excard .exlast {
-    font-size: 12.5px;
-    color: var(--navy-light);
-    font-weight: 600;
     margin-bottom: 10px;
   }
   .setsrow { display: flex; gap: 8px; }
@@ -262,7 +256,7 @@ const DAY_A = [
   {code:'CR', name:'Seated cable row or single-arm row', target:'Moderate · 3 x 10', suggested:null, type:'weight'},
   {code:'TP', name:'Triceps pushdown', target:'Light-mod · 2-3 x 10-12', suggested:null, type:'weight'},
   {code:'RD', name:'Rear delt fly or face pull', target:'Light · 2 x 12-15', suggested:null, type:'weight'},
-  {code:'PL', name:'Plank or dead bug', target:'Bodyweight · 2-3 x 20-30s/8reps', suggested:null, type:'time'},
+  {code:'PL', name:'Plank or dead bug', target:'Plank: 20-30s hold · Dead bug: 8/side · 2-3 sets', suggested:null, type:'time'},
 ];
 const DAY_B = [
   {code:'LP', name:'Lat pulldown', target:'30kg · 3 x 8-10', suggested:30, type:'weight'},
@@ -271,7 +265,7 @@ const DAY_B = [
   {code:'BC', name:'Biceps curl', target:'Light-mod · 2-3 x 10-12', suggested:null, type:'weight'},
   {code:'FP', name:'Face pull or band pull-apart', target:'Light · 2 x 15', suggested:null, type:'weight'},
   {code:'LG', name:'Leg press (light maintenance)', target:'Light-mod · 2 x 10', suggested:null, type:'weight'},
-  {code:'CO', name:'Core (dead bug / bird dog)', target:'Bodyweight · 2-3 x 8 each side', suggested:null, type:'time'},
+  {code:'CO', name:'Core (dead bug / bird dog)', target:'Dead bug or bird dog: 8/side · 2-3 sets', suggested:null, type:'time'},
 ];
 const ALL_EX = [...DAY_A.map(e => ({...e, day:'A'})), ...DAY_B.map(e => ({...e, day:'B'}))];
 
@@ -339,23 +333,23 @@ function renderLog() {
   `;
   list.forEach(ex => {
     const last = getLastEntry(ex.code);
-    const lastLine = last
-      ? `Last (${last.date}): ${formatSets(last.sets, ex.type)}`
-      : 'No previous entry yet';
     const wtPlaceholder = ex.type === 'time' ? 'sec' : 'kg';
     html += `
       <div class="excard">
         <div class="exname">${ex.code} · ${ex.name}</div>
         <div class="extarget">Target: ${ex.target}</div>
-        <div class="exlast">${lastLine}</div>
         <div class="setsrow">
-          ${[1,2,3].map(n => `
+          ${[1,2,3].map(n => {
+            const prevSet = (last && last.sets[n-1]) ? last.sets[n-1] : null;
+            const prevWt = (prevSet && prevSet.w) ? prevSet.w : '';
+            return `
             <div class="setcol">
               <div class="setlabel">Set ${n}</div>
-              <input type="text" inputmode="decimal" class="wt" data-code="${ex.code}" data-set="${n}" placeholder="${wtPlaceholder}">
+              <input type="text" inputmode="decimal" class="wt" data-code="${ex.code}" data-set="${n}" placeholder="${wtPlaceholder}" value="${prevWt}">
               <input type="text" inputmode="numeric" class="reps" data-code="${ex.code}" data-set="${n}" placeholder="reps">
             </div>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       </div>
     `;
