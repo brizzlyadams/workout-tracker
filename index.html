@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Workout">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Upper-Body Tracker</title>
+<style>
+  :root {
+    --navy: #1F3864;
+    --navy-light: #2F5496;
+    --white: #FFFFFF;
+    --grey-text: #444444;
+    --grey-border: #D8DEE8;
+    --grey-bg: #F5F7FA;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--white);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #111;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app { max-width: 480px; margin: 0 auto; padding-bottom: 84px; }
+
+  header.top {
+    background: var(--navy);
+    color: var(--white);
+    padding: 18px 20px 16px;
+    position: sticky; top: 0; z-index: 20;
+  }
+  header.top h1 {
+    margin: 0 0 2px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+  header.top .sub {
+    font-size: 12.5px;
+    color: #C9D4E8;
+  }
+
+  .daytoggle {
+    display: flex;
+    margin: 14px 16px 0;
+    background: var(--grey-bg);
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .daytoggle button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 10px 0;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--navy);
+    border-radius: 8px;
+    font-family: inherit;
+  }
+  .daytoggle button.active {
+    background: var(--navy);
+    color: var(--white);
+  }
+
+  .datebar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 16px 4px;
+  }
+  .datebar label { font-size: 13px; color: var(--grey-text); font-weight: 600; }
+  .datebar input[type="date"] {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1.5px solid var(--grey-border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #111;
+  }
+
+  .exlist { padding: 8px 16px 4px; }
+  .excard {
+    border: 1.5px solid var(--grey-border);
+    border-radius: 12px;
+    padding: 12px 14px 14px;
+    margin-bottom: 12px;
+    background: var(--white);
+  }
+  .excard .exname {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 2px;
+  }
+  .excard .extarget {
+    font-size: 12.5px;
+    color: var(--grey-text);
+    margin-bottom: 10px;
+  }
+  .setsrow { display: flex; gap: 8px; }
+  .setcol { flex: 1; text-align: center; }
+  .setcol .setlabel {
+    font-size: 11px;
+    color: #7A8296;
+    font-weight: 700;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .setcol input {
+    width: 100%;
+    border: 1.5px solid var(--navy-light);
+    border-radius: 8px;
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 15px;
+    font-family: inherit;
+    margin-bottom: 5px;
+  }
+  .setcol input::placeholder { color: #B7C0D1; }
+  .setcol input.reps { border-color: var(--grey-border); }
+
+  .savebar {
+    padding: 10px 16px 4px;
+  }
+  .savebtn {
+    width: 100%;
+    background: var(--navy);
+    color: var(--white);
+    border: none;
+    border-radius: 10px;
+    padding: 15px 0;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+  }
+  .savebtn:active { background: var(--navy-light); }
+  .savemsg {
+    text-align: center;
+    color: var(--navy);
+    font-weight: 700;
+    font-size: 13.5px;
+    margin-top: 8px;
+    min-height: 18px;
+  }
+
+  .viewpad { padding: 14px 16px 20px; }
+  .viewpad h2 {
+    font-size: 15px;
+    color: var(--navy);
+    margin: 6px 0 12px;
+  }
+  .empty {
+    color: #8A93A6;
+    font-size: 14px;
+    text-align: center;
+    padding: 40px 20px;
+  }
+
+  .session {
+    border: 1.5px solid var(--grey-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .session .shead {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    color: var(--navy);
+    font-size: 13.5px;
+    margin-bottom: 6px;
+  }
+  .session .sline {
+    font-size: 13px;
+    color: #333;
+    padding: 2px 0;
+  }
+  .session .sline b { color: var(--navy); }
+
+  .progcard {
+    border: 1.5px solid var(--grey-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .progcard .pname {
+    font-weight: 700;
+    color: var(--navy);
+    font-size: 14.5px;
+    margin-bottom: 4px;
+  }
+  .progcard .pline { font-size: 13px; color: #333; }
+  .progcard .pline.dim { color: #8A93A6; }
+
+  nav.bottom {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    max-width: 480px;
+    margin: 0 auto;
+    display: flex;
+    background: var(--white);
+    border-top: 1.5px solid var(--grey-border);
+    z-index: 20;
+  }
+  nav.bottom button {
+    flex: 1;
+    padding: 12px 0 10px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #8A93A6;
+  }
+  nav.bottom button.active { color: var(--navy); }
+  nav.bottom button .dot {
+    display: block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--navy);
+    margin: 0 auto 5px;
+    opacity: 0;
+  }
+  nav.bottom button.active .dot { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <h1>Upper-Body Tracker</h1>
+    <div class="sub" id="headerSub">2-day upper-body strength plan</div>
+  </header>
+
+  <div id="view-log"></div>
+  <div id="view-history" style="display:none;"></div>
+  <div id="view-progress" style="display:none;"></div>
+
+  <nav class="bottom">
+    <button id="tab-log" class="active"><span class="dot"></span>Log</button>
+    <button id="tab-history"><span class="dot"></span>History</button>
+    <button id="tab-progress"><span class="dot"></span>Progress</button>
+  </nav>
+</div>
+
+<script>
+const DAY_A = [
+  {code:'CP', name:'Chest press (machine or barbell)', target:'40kg · 3 x 8', suggested:40},
+  {code:'SP', name:'Seated shoulder press', target:'37kg · 3 x 8', suggested:37},
+  {code:'CR', name:'Seated cable row or single-arm row', target:'Moderate · 3 x 10', suggested:null},
+  {code:'TP', name:'Triceps pushdown', target:'Light-mod · 2-3 x 10-12', suggested:null},
+  {code:'RD', name:'Rear delt fly or face pull', target:'Light · 2 x 12-15', suggested:null},
+  {code:'PL', name:'Plank or dead bug', target:'Bodyweight · 2-3 x 20-30s/8reps', suggested:null},
+];
+const DAY_B = [
+  {code:'LP', name:'Lat pulldown', target:'30kg · 3 x 8-10', suggested:30},
+  {code:'CS', name:'Chest-supported row or seated cable row', target:'Moderate · 3 x 8-10', suggested:null},
+  {code:'DB', name:'Incline or flat dumbbell press', target:'Moderate · 2-3 x 10', suggested:null},
+  {code:'BC', name:'Biceps curl', target:'Light-mod · 2-3 x 10-12', suggested:null},
+  {code:'FP', name:'Face pull or band pull-apart', target:'Light · 2 x 15', suggested:null},
+  {code:'LG', name:'Leg press (light maintenance)', target:'Light-mod · 2 x 10', suggested:null},
+  {code:'CO', name:'Core (dead bug / bird dog)', target:'Bodyweight · 2-3 x 8 each side', suggested:null},
+];
+const ALL_EX = [...DAY_A.map(e => ({...e, day:'A'})), ...DAY_B.map(e => ({...e, day:'B'}))];
+
+let currentDay = 'A';
+let history = [];
+let activeTab = 'log';
+
+function todayStr() {
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+
+async function loadHistory() {
+  try {
+    const raw = localStorage.getItem('workout_history');
+    history = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    history = [];
+  }
+}
+
+async function saveHistory() {
+  try {
+    localStorage.setItem('workout_history', JSON.stringify(history));
+  } catch (e) {
+    console.error('Storage error', e);
+  }
+}
+
+function exList(day) { return day === 'A' ? DAY_A : DAY_B; }
+
+function renderLog() {
+  const el = document.getElementById('view-log');
+  const list = exList(currentDay);
+  let html = `
+    <div class="daytoggle">
+      <button id="btnDayA" class="${currentDay==='A' ? 'active':''}">Day A</button>
+      <button id="btnDayB" class="${currentDay==='B' ? 'active':''}">Day B</button>
+    </div>
+    <div class="datebar">
+      <label for="sessionDate">Date</label>
+      <input type="date" id="sessionDate" value="${todayStr()}">
+    </div>
+    <div class="exlist">
+  `;
+  list.forEach(ex => {
+    html += `
+      <div class="excard">
+        <div class="exname">${ex.code} · ${ex.name}</div>
+        <div class="extarget">Target: ${ex.target}</div>
+        <div class="setsrow">
+          ${[1,2,3].map(n => `
+            <div class="setcol">
+              <div class="setlabel">Set ${n}</div>
+              <input type="text" inputmode="decimal" class="wt" data-code="${ex.code}" data-set="${n}" placeholder="kg">
+              <input type="text" inputmode="numeric" class="reps" data-code="${ex.code}" data-set="${n}" placeholder="reps">
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  });
+  html += `
+    </div>
+    <div class="savebar">
+      <button class="savebtn" id="saveBtn">Save Session</button>
+      <div class="savemsg" id="saveMsg"></div>
+    </div>
+  `;
+  el.innerHTML = html;
+
+  document.getElementById('btnDayA').onclick = () => { currentDay = 'A'; renderLog(); };
+  document.getElementById('btnDayB').onclick = () => { currentDay = 'B'; renderLog(); };
+  document.getElementById('saveBtn').onclick = onSave;
+}
+
+async function onSave() {
+  const date = document.getElementById('sessionDate').value || todayStr();
+  const list = exList(currentDay);
+  const sets = {};
+  let anyFilled = false;
+
+  list.forEach(ex => {
+    const entries = [];
+    for (let n = 1; n <= 3; n++) {
+      const w = document.querySelector(`.wt[data-code="${ex.code}"][data-set="${n}"]`).value.trim();
+      const r = document.querySelector(`.reps[data-code="${ex.code}"][data-set="${n}"]`).value.trim();
+      if (w !== '' || r !== '') {
+        entries.push({ w, r });
+        anyFilled = true;
+      }
+    }
+    if (entries.length > 0) sets[ex.code] = entries;
+  });
+
+  const msgEl = document.getElementById('saveMsg');
+  if (!anyFilled) {
+    msgEl.textContent = 'Enter at least one set before saving.';
+    return;
+  }
+
+  history.push({ date, day: currentDay, sets });
+  await saveHistory();
+
+  msgEl.textContent = 'Saved!';
+  document.querySelectorAll('.wt, .reps').forEach(inp => inp.value = '');
+  setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 2000);
+}
+
+function exNameByCode(code) {
+  const found = ALL_EX.find(e => e.code === code);
+  return found ? found.name : code;
+}
+
+function renderHistory() {
+  const el = document.getElementById('view-history');
+  const sorted = [...history].sort((a,b) => (a.date < b.date ? 1 : -1));
+  let html = `<div class="viewpad"><h2>Past sessions</h2>`;
+  if (sorted.length === 0) {
+    html += `<div class="empty">No sessions logged yet.<br>Log your first one from the Log tab.</div>`;
+  } else {
+    sorted.forEach(s => {
+      html += `<div class="session"><div class="shead"><span>${s.date}</span><span>Day ${s.day}</span></div>`;
+      Object.keys(s.sets).forEach(code => {
+        const setsStr = s.sets[code].map(x => `${x.w || '–'}×${x.r || '–'}`).join(', ');
+        html += `<div class="sline"><b>${code}</b> — ${setsStr}</div>`;
+      });
+      html += `</div>`;
+    });
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+function renderProgress() {
+  const el = document.getElementById('view-progress');
+  let html = `<div class="viewpad"><h2>Best weight logged</h2>`;
+  ALL_EX.forEach(ex => {
+    let best = null;
+    let setsLogged = 0;
+    history.forEach(s => {
+      if (s.sets[ex.code]) {
+        s.sets[ex.code].forEach(entry => {
+          setsLogged++;
+          const val = parseFloat(entry.w);
+          if (!isNaN(val)) {
+            if (best === null || val > best) best = val;
+          }
+        });
+      }
+    });
+    html += `<div class="progcard"><div class="pname">${ex.code} · ${ex.name}</div>`;
+    if (ex.suggested !== null) {
+      html += `<div class="pline">Suggested: ${ex.suggested}kg</div>`;
+    } else {
+      html += `<div class="pline dim">Suggested: ${ex.target.split(' · ')[0]}</div>`;
+    }
+    if (setsLogged === 0) {
+      html += `<div class="pline dim">Not logged yet</div>`;
+    } else {
+      html += `<div class="pline">Best: ${best !== null ? best + 'kg' : '–'} &nbsp;·&nbsp; ${setsLogged} sets logged</div>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+function showTab(tab) {
+  activeTab = tab;
+  document.getElementById('view-log').style.display = tab === 'log' ? '' : 'none';
+  document.getElementById('view-history').style.display = tab === 'history' ? '' : 'none';
+  document.getElementById('view-progress').style.display = tab === 'progress' ? '' : 'none';
+  document.getElementById('tab-log').classList.toggle('active', tab === 'log');
+  document.getElementById('tab-history').classList.toggle('active', tab === 'history');
+  document.getElementById('tab-progress').classList.toggle('active', tab === 'progress');
+  if (tab === 'history') renderHistory();
+  if (tab === 'progress') renderProgress();
+}
+
+document.getElementById('tab-log').onclick = () => showTab('log');
+document.getElementById('tab-history').onclick = () => showTab('history');
+document.getElementById('tab-progress').onclick = () => showTab('progress');
+
+(async function init() {
+  await loadHistory();
+  renderLog();
+  showTab('log');
+})();
+</script>
+</body>
+</html>
