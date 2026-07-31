@@ -229,6 +229,40 @@
     opacity: 0;
   }
   nav.bottom button.active .dot { opacity: 1; }
+
+  .vartoggle {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .varbtn {
+    border: 1.5px solid var(--grey-border);
+    background: var(--grey-bg);
+    color: var(--navy);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-family: inherit;
+  }
+  .varbtn.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: var(--white);
+  }
+
+  .delbtn {
+    display: block;
+    margin-top: 8px;
+    background: none;
+    border: none;
+    color: #B23B3B;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    padding: 4px 0;
+  }
 </style>
 </head>
 <body>
@@ -251,21 +285,55 @@
 
 <script>
 const DAY_A = [
-  {code:'CP', name:'Chest press (machine or barbell)', target:'40kg · 3 x 8', suggested:40, type:'weight'},
-  {code:'SP', name:'Seated shoulder press', target:'37kg · 3 x 8', suggested:37, type:'weight'},
-  {code:'CR', name:'Seated cable row or single-arm row', target:'Moderate · 3 x 10', suggested:null, type:'weight'},
-  {code:'TP', name:'Triceps pushdown', target:'Light-mod · 2-3 x 10-12', suggested:null, type:'weight'},
-  {code:'RD', name:'Rear delt fly or face pull', target:'Light · 2 x 12-15', suggested:null, type:'weight'},
-  {code:'PL', name:'Plank or dead bug', target:'Plank: 20-30s hold · Dead bug: 8/side · 2-3 sets', suggested:null, type:'time'},
+  {code:'CP', name:'Chest press (machine or barbell)', target:'40kg · 3 x 8', variants:[
+    {label:'Machine', type:'weight', suggested:40},
+    {label:'Barbell', type:'weight', suggested:40},
+  ]},
+  {code:'SP', name:'Seated shoulder press', target:'37kg · 3 x 8', variants:[
+    {label:'Seated shoulder press', type:'weight', suggested:37},
+  ]},
+  {code:'CR', name:'Seated cable row or single-arm row', target:'Moderate · 3 x 10', variants:[
+    {label:'Seated cable row', type:'weight', suggested:null},
+    {label:'Single-arm row', type:'weight', suggested:null},
+  ]},
+  {code:'TP', name:'Triceps pushdown', target:'Light-mod · 2-3 x 10-12', variants:[
+    {label:'Triceps pushdown', type:'weight', suggested:null},
+  ]},
+  {code:'RD', name:'Rear delt fly or face pull', target:'Light · 2 x 12-15', variants:[
+    {label:'Rear delt fly', type:'weight', suggested:null},
+    {label:'Face pull', type:'weight', suggested:null},
+  ]},
+  {code:'PL', name:'Plank or dead bug', target:'Plank: 20-30s hold · Dead bug: 8/side · 2-3 sets', variants:[
+    {label:'Plank', type:'time'},
+    {label:'Dead bug', type:'reps'},
+  ]},
 ];
 const DAY_B = [
-  {code:'LP', name:'Lat pulldown', target:'30kg · 3 x 8-10', suggested:30, type:'weight'},
-  {code:'CS', name:'Chest-supported row or seated cable row', target:'Moderate · 3 x 8-10', suggested:null, type:'weight'},
-  {code:'DB', name:'Incline or flat dumbbell press', target:'Moderate · 2-3 x 10', suggested:null, type:'weight'},
-  {code:'BC', name:'Biceps curl', target:'Light-mod · 2-3 x 10-12', suggested:null, type:'weight'},
-  {code:'FP', name:'Face pull or band pull-apart', target:'Light · 2 x 15', suggested:null, type:'weight'},
-  {code:'LG', name:'Leg press (light maintenance)', target:'Light-mod · 2 x 10', suggested:null, type:'weight'},
-  {code:'CO', name:'Core (dead bug / bird dog)', target:'Dead bug or bird dog: 8/side · 2-3 sets', suggested:null, type:'time'},
+  {code:'LP', name:'Lat pulldown', target:'30kg · 3 x 8-10', variants:[
+    {label:'Lat pulldown', type:'weight', suggested:30},
+  ]},
+  {code:'CS', name:'Chest-supported row or seated cable row', target:'Moderate · 3 x 8-10', variants:[
+    {label:'Chest-supported row', type:'weight', suggested:null},
+    {label:'Seated cable row', type:'weight', suggested:null},
+  ]},
+  {code:'DB', name:'Incline or flat dumbbell press', target:'Moderate · 2-3 x 10', variants:[
+    {label:'Incline dumbbell press', type:'weight', suggested:null},
+    {label:'Flat dumbbell press', type:'weight', suggested:null},
+  ]},
+  {code:'BC', name:'Biceps curl', target:'Light-mod · 2-3 x 10-12', variants:[
+    {label:'Biceps curl', type:'weight', suggested:null},
+  ]},
+  {code:'FP', name:'Face pull or band pull-apart', target:'Light · 2 x 15', variants:[
+    {label:'Face pull', type:'weight', suggested:null},
+    {label:'Band pull-apart', type:'weight', suggested:null},
+  ]},
+  {code:'LG', name:'Leg press (light maintenance)', target:'Light-mod · 2 x 10', variants:[
+    {label:'Leg press', type:'weight', suggested:null},
+  ]},
+  {code:'CO', name:'Core (dead bug / bird dog)', target:'Dead bug or bird dog: 8/side · 2-3 sets', variants:[
+    {label:'Dead bug', type:'reps'},
+    {label:'Bird dog', type:'reps'},
+  ]},
 ];
 const ALL_EX = [...DAY_A.map(e => ({...e, day:'A'})), ...DAY_B.map(e => ({...e, day:'B'}))];
 
@@ -278,10 +346,56 @@ function todayStr() {
   return d.toISOString().slice(0,10);
 }
 
+function emptyDraftForDay() {
+  return { date: todayStr(), variants: {}, values: {} };
+}
+let draft = { A: emptyDraftForDay(), B: emptyDraftForDay() };
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem('workout_draft');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.A) draft.A = parsed.A;
+      if (parsed.B) draft.B = parsed.B;
+    }
+  } catch (e) {
+    // keep defaults
+  }
+}
+
+function saveDraft() {
+  try {
+    localStorage.setItem('workout_draft', JSON.stringify(draft));
+  } catch (e) {
+    console.error('Storage error', e);
+  }
+}
+
+function valueKey(code, variantLabel) { return code + '__' + variantLabel; }
+
 async function loadHistory() {
   try {
     const raw = localStorage.getItem('workout_history');
-    history = raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    history = parsed.map(sess => {
+      const sets = {};
+      Object.keys(sess.sets || {}).forEach(code => {
+        const rec = sess.sets[code];
+        if (Array.isArray(rec)) {
+          // legacy format: sets[code] was a plain array of {w,r} entries
+          const ex = ALL_EX.find(e => e.code === code);
+          const variantLabel = (ex && ex.variants[0]) ? ex.variants[0].label : code;
+          sets[code] = {
+            variant: variantLabel,
+            entries: rec.map(e => ({ w: e.w || '', r: e.r || '', t: '' })),
+          };
+        } else {
+          sets[code] = rec;
+        }
+      });
+      return { ...sess, sets };
+    });
   } catch (e) {
     history = [];
   }
@@ -297,29 +411,36 @@ async function saveHistory() {
 
 function exList(day) { return day === 'A' ? DAY_A : DAY_B; }
 
-function getLastEntry(code) {
+function getLastEntryForVariant(code, variantLabel) {
   for (let i = history.length - 1; i >= 0; i--) {
-    if (history[i].sets && history[i].sets[code]) {
-      return { date: history[i].date, sets: history[i].sets[code] };
+    const rec = history[i].sets && history[i].sets[code];
+    if (rec && rec.variant === variantLabel) {
+      return { date: history[i].date, entries: rec.entries };
     }
   }
   return null;
 }
 
-function formatSets(sets, type) {
-  return sets.map(s => {
-    if (type === 'time') {
-      if (s.w !== '' && s.w != null) return `${s.w}s`;
-      if (s.r !== '' && s.r != null) return `${s.r} reps`;
-      return '–';
-    }
-    return `${s.w || '–'}×${s.r || '–'}`;
+function getLastUsedVariantLabel(code) {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const rec = history[i].sets && history[i].sets[code];
+    if (rec && rec.variant) return rec.variant;
+  }
+  return null;
+}
+
+function formatEntries(entries, type) {
+  return entries.map(e => {
+    if (type === 'time') return (e.t !== '' && e.t != null) ? `${e.t}s` : '–';
+    if (type === 'reps') return (e.r !== '' && e.r != null) ? `${e.r} reps` : '–';
+    return `${e.w || '–'}×${e.r || '–'}`;
   }).join(', ');
 }
 
 function renderLog() {
   const el = document.getElementById('view-log');
   const list = exList(currentDay);
+  const d = draft[currentDay];
   let html = `
     <div class="daytoggle">
       <button id="btnDayA" class="${currentDay==='A' ? 'active':''}">Day A</button>
@@ -327,32 +448,51 @@ function renderLog() {
     </div>
     <div class="datebar">
       <label for="sessionDate">Date</label>
-      <input type="date" id="sessionDate" value="${todayStr()}">
+      <input type="date" id="sessionDate" value="${d.date || todayStr()}">
     </div>
     <div class="exlist">
   `;
   list.forEach(ex => {
-    const last = getLastEntry(ex.code);
-    const wtPlaceholder = ex.type === 'time' ? 'sec' : 'kg';
+    const selectedLabel = d.variants[ex.code] || getLastUsedVariantLabel(ex.code) || ex.variants[0].label;
+    const variant = ex.variants.find(v => v.label === selectedLabel) || ex.variants[0];
+    const vKey = valueKey(ex.code, variant.label);
+    const draftEntries = d.values[vKey] || [];
+    const lastEntry = getLastEntryForVariant(ex.code, variant.label);
+
     html += `
       <div class="excard">
         <div class="exname">${ex.code} · ${ex.name}</div>
         <div class="extarget">Target: ${ex.target}</div>
-        <div class="setsrow">
-          ${[1,2,3].map(n => {
-            const prevSet = (last && last.sets[n-1]) ? last.sets[n-1] : null;
-            const prevWt = (prevSet && prevSet.w) ? prevSet.w : '';
-            return `
-            <div class="setcol">
-              <div class="setlabel">Set ${n}</div>
-              <input type="text" inputmode="decimal" class="wt" data-code="${ex.code}" data-set="${n}" placeholder="${wtPlaceholder}" value="${prevWt}">
-              <input type="text" inputmode="numeric" class="reps" data-code="${ex.code}" data-set="${n}" placeholder="reps">
-            </div>
-          `;
-          }).join('')}
-        </div>
-      </div>
     `;
+
+    if (ex.variants.length > 1) {
+      html += `<div class="vartoggle">`;
+      ex.variants.forEach(v => {
+        html += `<button class="varbtn ${v.label === variant.label ? 'active' : ''}" data-code="${ex.code}" data-variant="${v.label}">${v.label}</button>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `<div class="setsrow">`;
+    for (let n = 1; n <= 3; n++) {
+      const draftSet = draftEntries[n-1] || {};
+      const lastSet = (lastEntry && lastEntry.entries[n-1]) || {};
+      html += `<div class="setcol"><div class="setlabel">Set ${n}</div>`;
+      if (variant.type === 'weight') {
+        const wVal = (draftSet.w !== undefined && draftSet.w !== '') ? draftSet.w : (lastSet.w || '');
+        const rVal = draftSet.r !== undefined ? draftSet.r : '';
+        html += `<input type="text" inputmode="decimal" class="fld" data-code="${ex.code}" data-variant="${variant.label}" data-set="${n}" data-field="w" placeholder="kg" value="${wVal}">`;
+        html += `<input type="text" inputmode="numeric" class="fld reps" data-code="${ex.code}" data-variant="${variant.label}" data-set="${n}" data-field="r" placeholder="reps" value="${rVal}">`;
+      } else if (variant.type === 'time') {
+        const tVal = draftSet.t !== undefined ? draftSet.t : '';
+        html += `<input type="text" inputmode="numeric" class="fld reps" data-code="${ex.code}" data-variant="${variant.label}" data-set="${n}" data-field="t" placeholder="sec" value="${tVal}">`;
+      } else {
+        const rVal = draftSet.r !== undefined ? draftSet.r : '';
+        html += `<input type="text" inputmode="numeric" class="fld reps" data-code="${ex.code}" data-variant="${variant.label}" data-set="${n}" data-field="r" placeholder="reps" value="${rVal}">`;
+      }
+      html += `</div>`;
+    }
+    html += `</div></div>`;
   });
   html += `
     </div>
@@ -366,39 +506,75 @@ function renderLog() {
   document.getElementById('btnDayA').onclick = () => { currentDay = 'A'; renderLog(); };
   document.getElementById('btnDayB').onclick = () => { currentDay = 'B'; renderLog(); };
   document.getElementById('saveBtn').onclick = onSave;
+  document.getElementById('sessionDate').oninput = (e) => {
+    draft[currentDay].date = e.target.value;
+    saveDraft();
+  };
+
+  el.querySelectorAll('.varbtn').forEach(btn => {
+    btn.onclick = () => {
+      draft[currentDay].variants[btn.dataset.code] = btn.dataset.variant;
+      saveDraft();
+      renderLog();
+    };
+  });
+
+  el.querySelectorAll('.fld').forEach(inp => {
+    inp.oninput = () => {
+      const { code, variant, set, field } = inp.dataset;
+      const vKey = valueKey(code, variant);
+      if (!draft[currentDay].values[vKey]) draft[currentDay].values[vKey] = [{}, {}, {}];
+      draft[currentDay].values[vKey][parseInt(set, 10) - 1][field] = inp.value;
+      saveDraft();
+    };
+  });
 }
 
 async function onSave() {
-  const date = document.getElementById('sessionDate').value || todayStr();
+  const d = draft[currentDay];
+  const date = d.date || todayStr();
   const list = exList(currentDay);
   const sets = {};
   let anyFilled = false;
 
   list.forEach(ex => {
+    const selectedLabel = d.variants[ex.code] || getLastUsedVariantLabel(ex.code) || ex.variants[0].label;
+    const variant = ex.variants.find(v => v.label === selectedLabel) || ex.variants[0];
+    const vKey = valueKey(ex.code, variant.label);
+    const rawEntries = d.values[vKey] || [];
     const entries = [];
-    for (let n = 1; n <= 3; n++) {
-      const w = document.querySelector(`.wt[data-code="${ex.code}"][data-set="${n}"]`).value.trim();
-      const r = document.querySelector(`.reps[data-code="${ex.code}"][data-set="${n}"]`).value.trim();
-      if (w !== '' || r !== '') {
-        entries.push({ w, r });
+
+    for (let n = 0; n < 3; n++) {
+      const raw = rawEntries[n] || {};
+      const w = (raw.w || '').trim();
+      const r = (raw.r || '').trim();
+      const t = (raw.t || '').trim();
+      const filled = variant.type === 'weight' ? (w !== '' || r !== '')
+        : variant.type === 'time' ? (t !== '')
+        : (r !== '');
+      if (filled) {
+        entries.push({ w, r, t });
         anyFilled = true;
       }
     }
-    if (entries.length > 0) sets[ex.code] = entries;
+    if (entries.length > 0) sets[ex.code] = { variant: variant.label, entries };
   });
 
-  const msgEl = document.getElementById('saveMsg');
   if (!anyFilled) {
-    msgEl.textContent = 'Enter at least one set before saving.';
+    document.getElementById('saveMsg').textContent = 'Enter at least one set before saving.';
     return;
   }
 
   history.push({ date, day: currentDay, sets });
   await saveHistory();
 
+  draft[currentDay] = emptyDraftForDay();
+  saveDraft();
+  renderLog();
+
+  const msgEl = document.getElementById('saveMsg');
   msgEl.textContent = 'Saved!';
-  document.querySelectorAll('.wt, .reps').forEach(inp => inp.value = '');
-  setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 2000);
+  setTimeout(() => { const m = document.getElementById('saveMsg'); if (m) m.textContent = ''; }, 2000);
 }
 
 function exNameByCode(code) {
@@ -408,58 +584,80 @@ function exNameByCode(code) {
 
 function renderHistory() {
   const el = document.getElementById('view-history');
-  const sorted = [...history].sort((a,b) => (a.date < b.date ? 1 : -1));
+  const indexed = history.map((s, i) => ({ s, i })).sort((a,b) => (a.s.date < b.s.date ? 1 : -1));
   let html = `<div class="viewpad"><h2>Past sessions</h2>`;
-  if (sorted.length === 0) {
+  if (indexed.length === 0) {
     html += `<div class="empty">No sessions logged yet.<br>Log your first one from the Log tab.</div>`;
   } else {
-    sorted.forEach(s => {
+    indexed.forEach(({ s, i }) => {
       html += `<div class="session"><div class="shead"><span>${s.date}</span><span>Day ${s.day}</span></div>`;
       Object.keys(s.sets).forEach(code => {
         const ex = ALL_EX.find(e => e.code === code);
-        const setsStr = formatSets(s.sets[code], ex ? ex.type : 'weight');
-        html += `<div class="sline"><b>${code}</b> — ${setsStr}</div>`;
+        const rec = s.sets[code];
+        const variant = ex ? ex.variants.find(v => v.label === rec.variant) : null;
+        const type = variant ? variant.type : 'weight';
+        const setsStr = formatEntries(rec.entries, type);
+        const variantTag = (ex && ex.variants.length > 1 && rec.variant) ? `${rec.variant}: ` : '';
+        html += `<div class="sline"><b>${code}</b> — ${variantTag}${setsStr}</div>`;
       });
+      html += `<button class="delbtn" data-idx="${i}">Delete session</button>`;
       html += `</div>`;
     });
   }
   html += `</div>`;
   el.innerHTML = html;
+
+  el.querySelectorAll('.delbtn').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('Delete this session? This cannot be undone.')) return;
+      const idx = parseInt(btn.dataset.idx, 10);
+      history.splice(idx, 1);
+      await saveHistory();
+      renderHistory();
+    };
+  });
+}
+
+function computeBestForVariant(code, variant) {
+  let best = null;
+  let setsLogged = 0;
+  history.forEach(s => {
+    const rec = s.sets && s.sets[code];
+    if (rec && rec.variant === variant.label) {
+      rec.entries.forEach(entry => {
+        setsLogged++;
+        const raw = variant.type === 'time' ? entry.t
+          : variant.type === 'reps' ? entry.r
+          : entry.w;
+        const val = parseFloat(raw);
+        if (!isNaN(val)) {
+          if (best === null || val > best) best = val;
+        }
+      });
+    }
+  });
+  return { best, setsLogged };
 }
 
 function renderProgress() {
   const el = document.getElementById('view-progress');
   let html = `<div class="viewpad"><h2>Best logged so far</h2>`;
   ALL_EX.forEach(ex => {
-    let best = null;
-    let setsLogged = 0;
-    history.forEach(s => {
-      if (s.sets[ex.code]) {
-        s.sets[ex.code].forEach(entry => {
-          setsLogged++;
-          const raw = ex.type === 'time'
-            ? (entry.w !== '' ? entry.w : entry.r)
-            : entry.w;
-          const val = parseFloat(raw);
-          if (!isNaN(val)) {
-            if (best === null || val > best) best = val;
-          }
-        });
+    html += `<div class="progcard"><div class="pname">${ex.code} · ${ex.name}</div>`;
+    ex.variants.forEach(v => {
+      const { best, setsLogged } = computeBestForVariant(ex.code, v);
+      const unit = v.type === 'time' ? 's' : (v.type === 'reps' ? ' reps' : 'kg');
+      const prefix = ex.variants.length > 1 ? `<b>${v.label}</b> — ` : '';
+      if (v.type === 'weight' && v.suggested !== null) {
+        html += `<div class="pline dim">${ex.variants.length > 1 ? v.label + ' suggested' : 'Suggested'}: ${v.suggested}kg</div>`;
+      }
+      if (setsLogged === 0) {
+        html += `<div class="pline dim">${prefix}Not logged yet</div>`;
+      } else {
+        const bestLabel = v.type === 'time' ? 'Best hold' : 'Best';
+        html += `<div class="pline">${prefix}${bestLabel}: ${best !== null ? best + unit : '–'} &nbsp;·&nbsp; ${setsLogged} sets logged</div>`;
       }
     });
-    const unit = ex.type === 'time' ? 's' : 'kg';
-    html += `<div class="progcard"><div class="pname">${ex.code} · ${ex.name}</div>`;
-    if (ex.type === 'weight' && ex.suggested !== null) {
-      html += `<div class="pline">Suggested: ${ex.suggested}kg</div>`;
-    } else {
-      html += `<div class="pline dim">Suggested: ${ex.target.split(' · ')[0]}</div>`;
-    }
-    if (setsLogged === 0) {
-      html += `<div class="pline dim">Not logged yet</div>`;
-    } else {
-      const bestLabel = ex.type === 'time' ? 'Best hold' : 'Best';
-      html += `<div class="pline">${bestLabel}: ${best !== null ? best + unit : '–'} &nbsp;·&nbsp; ${setsLogged} sets logged</div>`;
-    }
     html += `</div>`;
   });
   html += `
@@ -523,6 +721,7 @@ document.getElementById('tab-progress').onclick = () => showTab('progress');
 
 (async function init() {
   await loadHistory();
+  loadDraft();
   renderLog();
   showTab('log');
 })();
