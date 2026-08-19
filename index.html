@@ -347,7 +347,7 @@ function todayStr() {
 }
 
 function emptyDraftForDay() {
-  return { date: todayStr(), variants: {}, values: {} };
+  return { date: todayStr(), dateTouched: false, variants: {}, values: {} };
 }
 let draft = { A: emptyDraftForDay(), B: emptyDraftForDay() };
 
@@ -441,6 +441,7 @@ function renderLog() {
   const el = document.getElementById('view-log');
   const list = exList(currentDay);
   const d = draft[currentDay];
+  if (!d.dateTouched) d.date = todayStr();
   let html = `
     <div class="daytoggle">
       <button id="btnDayA" class="${currentDay==='A' ? 'active':''}">Day A</button>
@@ -448,7 +449,7 @@ function renderLog() {
     </div>
     <div class="datebar">
       <label for="sessionDate">Date</label>
-      <input type="date" id="sessionDate" value="${d.date || todayStr()}">
+      <input type="date" id="sessionDate" value="${d.date}">
     </div>
     <div class="exlist">
   `;
@@ -508,6 +509,7 @@ function renderLog() {
   document.getElementById('saveBtn').onclick = onSave;
   document.getElementById('sessionDate').oninput = (e) => {
     draft[currentDay].date = e.target.value;
+    draft[currentDay].dateTouched = true;
     saveDraft();
   };
 
