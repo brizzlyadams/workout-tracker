@@ -682,44 +682,116 @@ function renderProgress() {
   html += `
     <div class="progcard">
       <div class="pname">Backup &amp; Restore</div>
-      <div class="pline dim">Copy this text somewhere safe (Notes app, email to yourself) in case you switch devices or clear browser data.</div>
-      <textarea id="backupOutput" readonly style="width:100%;margin-top:8px;height:70px;border:1.5px solid var(--grey-border);border-radius:8px;padding:8px;font-family:monospace;font-size:11px;box-sizing:border-box;">${JSON.stringify(history)}</textarea>
-      <button class="savebtn" id="copyBackupBtn" style="margin-top:8px;">Copy Backup</button>
+      <div class="pline dim">Your history lives only on this device. A Home Screen app keeps its own copy, and <b>deleting the icon deletes the data</b> — so keep a backup somewhere else.</div>
+      <button class="savebtn" id="downloadBackupBtn" style="margin-top:8px;">Download backup file</button>
+      <button class="savebtn" id="copyBackupBtn" style="margin-top:8px;">Copy backup text</button>
+      <textarea id="backupOutput" readonly style="width:100%;margin-top:8px;height:70px;border:1.5px solid var(--grey-border);border-radius:8px;padding:8px;font-family:monospace;font-size:11px;box-sizing:border-box;">${backupText().replace(/</g, '&lt;')}</textarea>
       <div class="savemsg" id="backupMsg"></div>
-      <div class="pline dim" style="margin-top:14px;">To restore, paste a backup below:</div>
-      <textarea id="restoreInput" placeholder="Paste backup text here" style="width:100%;margin-top:6px;height:70px;border:1.5px solid var(--grey-border);border-radius:8px;padding:8px;font-family:monospace;font-size:11px;box-sizing:border-box;"></textarea>
+      <div class="pline dim" style="margin-top:14px;">Restore from a file:</div>
+      <input type="file" id="restoreFile" accept="application/json,.json" style="margin-top:6px;font-size:12px;">
+      <div class="pline dim" style="margin-top:12px;">…or paste a backup:</div>
+      <textarea id="restoreInput" placeholder="Paste backup text here" style="width:100%;margin-top:8px;height:70px;border:1.5px solid var(--grey-border);border-radius:8px;padding:8px;font-family:monospace;font-size:11px;box-sizing:border-box;"></textarea>
       <button class="savebtn" id="restoreBtn" style="margin-top:8px;background:#8A93A6;">Restore from Backup</button>
     </div>
   `;
   html += `</div>`;
   el.innerHTML = html;
 
-  document.getElementById('copyBackupBtn').onclick = async () => {
-    const msgEl = document.getElementById('backupMsg');
+  const bMsg = () => document.getElementById('backupMsg');
+  const dlBtn = document.getElementById('downloadBackupBtn');
+  if (dlBtn) dlBtn.onclick = () => downloadBackup(bMsg());
+
+  const cpBtn = document.getElementById('copyBackupBtn');
+  if (cpBtn) cpBtn.onclick = async () => {
+    const m = bMsg();
     try {
-      await navigator.clipboard.writeText(JSON.stringify(history));
-      msgEl.textContent = 'Copied! Paste it somewhere safe.';
+      await navigator.clipboard.writeText(backupText());
+      m.textContent = 'Copied! Paste it somewhere safe.';
     } catch (e) {
-      msgEl.textContent = 'Auto-copy blocked — tap the text box above, select all, and copy manually.';
+      m.textContent = 'Auto-copy blocked — tap the text box above, select all, and copy manually.';
     }
-    setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 4000);
+    setTimeout(() => { if (m) m.textContent = ''; }, 4000);
   };
 
-  document.getElementById('restoreBtn').onclick = async () => {
-    const input = document.getElementById('restoreInput').value.trim();
-    const msgEl = document.getElementById('backupMsg');
-    if (!input) { msgEl.textContent = 'Paste a backup first.'; return; }
-    try {
-      const parsed = JSON.parse(input);
-      if (!Array.isArray(parsed)) throw new Error('bad format');
-      history = parsed;
-      await saveHistory();
-      msgEl.textContent = 'Restored!';
-      renderProgress();
-    } catch (e) {
-      msgEl.textContent = "That doesn't look like a valid backup.";
-    }
+  const fileInput = document.getElementById('restoreFile');
+  if (fileInput) fileInput.onchange = () => {
+    const f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { bMsg().textContent = restoreFromText(String(r.result)); fileInput.value = ''; };
+    r.onerror = () => { bMsg().textContent = 'Could not read that file.'; };
+    r.readAsText(f);
   };
+
+  const rsBtn = document.getElementById('restoreBtn');
+  if (rsBtn) rsBtn.onclick = () => {
+    const input = document.getElementById('restoreInput').value.trim();
+    if (!input) { bMsg().textContent = 'Paste a backup first.'; return; }
+    bMsg().textContent = restoreFromText(input);
+  };
+}
+
+// ---- Backup & Restore ----------------------------------------------------
+// FOUR routes on purpose, because the failure this guards against is real and
+// silent: a page with apple-mobile-web-app-capable gets a storage sandbox of
+// its own when added to the Home Screen, and DELETING THE SHORTCUT DELETES THE
+// DATA. No warning, no undo. Downloads can also misbehave inside a standalone
+// web app on iOS, so the clipboard route is kept as the one that always works.
+//
+// Backups carry an envelope {app, v, exported, data} so a future format change
+// is detectable rather than silently mis-restored. Restore still accepts the
+// older bare payload, so backups taken before this existed keep working.
+const BACKUP_APP = 'workout-tracker';
+const BACKUP_V = 1;
+
+function backupText() {
+  return JSON.stringify({
+    app: BACKUP_APP, v: BACKUP_V, exported: new Date().toISOString(),
+    data: backupData()
+  }, null, 2);
+}
+
+function backupFilename() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return BACKUP_APP + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate())
+       + '-' + p(d.getHours()) + p(d.getMinutes()) + '.json';
+}
+
+function downloadBackup(msgEl) {
+  try {
+    const blob = new Blob([backupText()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = backupFilename();
+    document.body.appendChild(a); a.click(); a.remove();
+    // Revoked late: Safari can still be reading the blob when click() returns.
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    if (msgEl) msgEl.textContent = 'Saved ' + backupFilename();
+  } catch (e) {
+    if (msgEl) msgEl.textContent = 'Download blocked — use Copy backup text instead.';
+  }
+}
+
+// Accepts the envelope or a legacy bare payload. Returns a message string.
+function restoreFromText(text) {
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) { return "That doesn't look like a valid backup."; }
+  if (parsed && parsed.app && parsed.data !== undefined) {
+    if (parsed.app !== BACKUP_APP) return 'That backup is from ' + parsed.app + ', not this app.';
+    return applyBackup(parsed.data);
+  }
+  return applyBackup(parsed);          // legacy, pre-envelope
+}
+
+function backupData() { return history; }
+
+function applyBackup(data) {
+  if (!Array.isArray(data)) return "That doesn't look like a valid backup.";
+  history = data;
+  saveHistory();
+  renderProgress();
+  return 'Restored ' + data.length + ' entries.';
 }
 
 function showTab(tab) {
